@@ -18,6 +18,7 @@ KURS_USD_IDR = 15700  # Default rate, akan diupdate secara otomatis
 ##########################################################################################
 
 # Fungsi untuk mendapatkan kurs USD/IDR terkini
+@st.cache_data(ttl=300)  # Cache selama 5 menit
 def ambil_kurs_usd_idr():
     """
     Mengambil kurs USD/IDR real-time dari Yahoo Finance
@@ -46,9 +47,9 @@ def ambil_data_saham(simbol, periode, interval):
     
     if periode == '1minggu':
         tanggal_awal = tanggal_akhir - timedelta(days=7)
-        data_saham = yf.download(simbol, start=tanggal_awal, end=tanggal_akhir, interval=interval)
+        data_saham = yf.download(simbol, start=tanggal_awal, end=tanggal_akhir, interval=interval, progress=False)
     else:
-        data_saham = yf.download(simbol, period=periode, interval=interval)
+        data_saham = yf.download(simbol, period=periode, interval=interval, progress=False)
     
     return data_saham
 
@@ -206,6 +207,9 @@ st.sidebar.markdown('---')
 if st.sidebar.button('🔄 Perbarui Data', type='primary', use_container_width=True):
     
     with st.spinner(f'Mengambil data untuk {kode_saham}...'):
+        # Ambil kurs USD/IDR
+        kurs_idr = ambil_kurs_usd_idr()
+        
         # Ambil dan proses data
         data = ambil_data_saham(kode_saham, periode_waktu, pemetaan_interval[periode_waktu])
         
@@ -216,28 +220,52 @@ if st.sidebar.button('🔄 Perbarui Data', type='primary', use_container_width=T
             data = tambah_indikator(data)
             
             # Hitung metrik
-            harga_terakhir, perubahan, perubahan_persen, tinggi, rendah, volume = hitung_metrik(data)
+            metrik = hitung_metrik(data, kurs_idr)
+            
+            # Tampilkan kurs
+            st.info(f'💱 Kurs: 1 USD = Rp {kurs_idr:,.2f}')
             
             # Tampilkan metrik utama
             st.subheader(f'📈 {kode_saham.upper()}')
             
-            col_metrik1, col_metrik2, col_metrik3, col_metrik4 = st.columns(4)
+            # Buat dua baris metrik: USD dan IDR
+            st.markdown("**💵 Harga dalam USD:**")
+            col_usd1, col_usd2, col_usd3, col_usd4 = st.columns(4)
             
-            with col_metrik1:
+            with col_usd1:
                 st.metric(
                     label="Harga Terakhir", 
-                    value=f"${harga_terakhir:.2f}",
-                    delta=f"${perubahan:.2f} ({perubahan_persen:.2f}%)"
+                    value=f"${metrik['harga_terakhir_usd']:.2f}",
+                    delta=f"${metrik['perubahan_usd']:.2f} ({metrik['perubahan_persen']:.2f}%)"
                 )
             
-            with col_metrik2:
-                st.metric("Tertinggi", f"${tinggi:.2f}")
+            with col_usd2:
+                st.metric("Tertinggi", f"${metrik['harga_tertinggi_usd']:.2f}")
             
-            with col_metrik3:
-                st.metric("Terendah", f"${rendah:.2f}")
+            with col_usd3:
+                st.metric("Terendah", f"${metrik['harga_terendah_usd']:.2f}")
             
-            with col_metrik4:
-                st.metric("Volume", f"{volume:,.0f}")
+            with col_usd4:
+                st.metric("Volume", f"{metrik['total_volume']:,.0f}")
+            
+            st.markdown("**🇮🇩 Harga dalam IDR:**")
+            col_idr1, col_idr2, col_idr3, col_idr4 = st.columns(4)
+            
+            with col_idr1:
+                st.metric(
+                    label="Harga Terakhir", 
+                    value=f"Rp {metrik['harga_terakhir_idr']:,.0f}",
+                    delta=f"Rp {metrik['perubahan_idr']:,.0f} ({metrik['perubahan_persen']:.2f}%)"
+                )
+            
+            with col_idr2:
+                st.metric("Tertinggi", f"Rp {metrik['harga_tertinggi_idr']:,.0f}")
+            
+            with col_idr3:
+                st.metric("Terendah", f"Rp {metrik['harga_terendah_idr']:,.0f}")
+            
+            with col_idr4:
+                st.metric("Volume", f"{metrik['total_volume']:,.0f}")
             
             st.markdown('---')
             
@@ -371,6 +399,7 @@ else:
     - **Indikator Teknikal**: SMA, EMA, RSI
     - **Data Real-Time**: Update data saham terkini
     - **Analisis Multi-Periode**: Dari 1 hari hingga data maksimal
+    - **Dual Currency**: Tampilan harga dalam USD dan IDR
     
     ### 📖 Cara Menggunakan:
     1. Masukkan kode saham (ticker) di panel samping
@@ -401,7 +430,6 @@ for simbol in daftar_saham:
             
             # Konversi ke IDR
             harga_sekarang_idr = harga_sekarang * kurs_sidebar
-            selisih_idr = selisih * kurs_sidebar
             
             st.sidebar.metric(
                 f"{simbol}", 
