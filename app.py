@@ -233,11 +233,13 @@ if st.sidebar.button('🔄 Perbarui Data', type='primary', use_container_width=T
             col_usd1, col_usd2, col_usd3, col_usd4 = st.columns(4)
             
             with col_usd1:
+                # Format delta text manually with color indicator
+                delta_text = f"{metrik['perubahan_usd']:.2f} ({metrik['perubahan_persen']:.2f}%)"
                 st.metric(
                     label="Harga Terakhir", 
                     value=f"${metrik['harga_terakhir_usd']:.2f}",
-                    delta=f"${metrik['perubahan_usd']:.2f} ({metrik['perubahan_persen']:.2f}%)",
-                    delta_color="normal"  # This will show red for negative, green for positive
+                    delta=delta_text,
+                    delta_color="normal"
                 )
             
             with col_usd2:
@@ -253,11 +255,13 @@ if st.sidebar.button('🔄 Perbarui Data', type='primary', use_container_width=T
             col_idr1, col_idr2, col_idr3, col_idr4 = st.columns(4)
             
             with col_idr1:
+                # Format delta text manually with color indicator
+                delta_text_idr = f"{metrik['perubahan_idr']:.0f} ({metrik['perubahan_persen']:.2f}%)"
                 st.metric(
                     label="Harga Terakhir", 
                     value=f"Rp {metrik['harga_terakhir_idr']:,.0f}",
-                    delta=f"Rp {metrik['perubahan_idr']:,.0f} ({metrik['perubahan_persen']:.2f}%)",
-                    delta_color="normal"  # This will show red for negative, green for positive
+                    delta=delta_text_idr,
+                    delta_color="normal"
                 )
             
             with col_idr2:
@@ -433,11 +437,14 @@ for simbol in daftar_saham:
             # Konversi ke IDR
             harga_sekarang_idr = harga_sekarang * kurs_sidebar
             
+            # Format delta without dollar sign so Streamlit can detect sign
+            delta_text = f"{selisih:.2f} ({persen_selisih:.2f}%)"
+            
             st.sidebar.metric(
                 f"{simbol}", 
                 f"${harga_sekarang:.2f} / Rp {harga_sekarang_idr:,.0f}",
-                f"{selisih:.2f} ({persen_selisih:.2f}%)",
-                delta_color="normal"  # Red for negative, green for positive
+                delta_text,
+                delta_color="normal"
             )
     except:
         st.sidebar.text(f"{simbol}: Data tidak tersedia")
